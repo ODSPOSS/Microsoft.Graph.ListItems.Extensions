@@ -1,3 +1,5 @@
 ﻿.vs
 Microsoft.Graph.ListItems.Extensions/bin
 Microsoft.Graph.ListItems.Extensions/obj
+TestApp/bin
+TestApp/obj

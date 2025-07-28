@@ -10,7 +10,7 @@ namespace Microsoft.Graph.ListItems.Extensions
     {
         #region Create Operations
 
-        public static async Task<T> PostAsync<T>(this ItemsRequestBuilder itemsBuilder, T item, string? contentTypeId = null)
+        public static async Task<T> PostAsync<T>(this Microsoft.Graph.Sites.Item.Lists.Item.Items.ItemsRequestBuilder itemsBuilder, T item, string? contentTypeId = null)
         where T : GraphListItemModel<T>
         {
             ArgumentNullException.ThrowIfNull(itemsBuilder);
@@ -25,6 +25,56 @@ namespace Microsoft.Graph.ListItems.Extensions
 
         #region Read Operations
 
+        public static async Task<List<T>> GetAsync<T>(
+               this Microsoft.Graph.Sites.Item.Lists.Item.Items.ItemsRequestBuilder builder,
+               Action<RequestConfiguration<Microsoft.Graph.Sites.Item.Lists.Item.Items.ItemsRequestBuilder.ItemsRequestBuilderGetQueryParameters>>? requestConfiguration = null)
+               where T : GraphListItemModel<T>, new()
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+
+            var allItems = new List<T>();
+            ListItemCollectionResponse? itemCollectionResponse;
+
+            var model = new T();
+            var fields = model.GetViewFields?.ToArray() ?? Array.Empty<string>();
+
+            itemCollectionResponse = await builder.GetAsync(config =>
+            {
+                requestConfiguration?.Invoke(config);
+
+                if (fields.Length > 0)
+                {
+                    var fieldSelection = string.Join(",", fields);
+                    config.QueryParameters.Expand = new[] { $"fields($select={fieldSelection})" };
+                }
+                else
+                {
+                    config.QueryParameters.Expand = new[] { "fields" };
+                }
+            });
+
+            while (itemCollectionResponse?.Value != null)
+            {
+                foreach (var listItem in itemCollectionResponse.Value)
+                {
+                    allItems.Add(new T().Load(listItem));
+                }
+
+                if (!string.IsNullOrEmpty(itemCollectionResponse.OdataNextLink))
+                {
+                    itemCollectionResponse = await builder
+                        .WithUrl(itemCollectionResponse.OdataNextLink)
+                        .GetAsync();
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            return allItems;
+        }
+
         public static async Task<T?> GetAsync<T>(
             this ListItemItemRequestBuilder builder,
             Action<RequestConfiguration<ListItemItemRequestBuilder.ListItemItemRequestBuilderGetQueryParameters>>? requestConfiguration = null)
@@ -34,24 +84,23 @@ namespace Microsoft.Graph.ListItems.Extensions
 
             ListItem? item;
 
-            if (requestConfiguration != null)
-            {
-                item = await builder.GetAsync(requestConfiguration);
-            }
-            else
-            {
-                var model = new T();
-                var fields = model.GetViewFields?.Select(f => $"fields/{f}").ToArray() ?? Array.Empty<string>();
+            var model = new T();
+            var fields = model.GetViewFields?.ToArray() ?? Array.Empty<string>();
 
-                item = await builder.GetAsync(config =>
+            item = await builder.GetAsync(config =>
+            {
+                requestConfiguration?.Invoke(config);
+
+                if (fields.Length > 0)
+                {
+                    var fieldSelection = string.Join(",", fields);
+                    config.QueryParameters.Expand = new[] { $"fields($select={fieldSelection})" };
+                }
+                else
                 {
                     config.QueryParameters.Expand = new[] { "fields" };
-                    if (fields.Length > 0)
-                    {
-                        config.QueryParameters.Select = fields;
-                    }
-                });
-            }
+                }
+            });
 
             return item != null ? new T().Load(item) : null;
         }
@@ -97,7 +146,7 @@ namespace Microsoft.Graph.ListItems.Extensions
                 AdditionalData = model.ToDictionary()
             };
 
-            var updatedFields = await fieldsBuilder.PatchAsync(patchPayload) ?? 
+            var updatedFields = await fieldsBuilder.PatchAsync(patchPayload) ??
                 throw new InvalidOperationException("Field update failed.");
 
             return model.Load(new ListItem { Fields = updatedFields });
