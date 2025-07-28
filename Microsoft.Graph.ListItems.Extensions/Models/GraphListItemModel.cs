@@ -6,15 +6,37 @@ namespace Microsoft.Graph.ListItems.Extensions.Models
     public abstract class GraphListItemModel<T> where T : GraphListItemModel<T>
     {
         private readonly ChangeTracker _changeTracker;
+        private Dictionary<string, object?> _originalData = new();
 
         public string? ID { get; set; }
 
         public GraphListItemModel()
         {
-            _changeTracker = new ChangeTracker(() => ToDictionary());
+            _changeTracker = new ChangeTracker(() => FieldValues());
         }
 
-        public abstract Dictionary<string, object> ToDictionary();
+        public virtual Dictionary<string, object> FieldValues()
+        {
+            var result = new Dictionary<string, object>();
+            
+            foreach (var kvp in _originalData)
+            {
+                if (kvp.Value != null)
+                {
+                    result[kvp.Key] = kvp.Value;
+                }
+            }
+
+            var managedFields = ToDictionary();
+            foreach (var kvp in managedFields)
+            {
+                result[kvp.Key] = kvp.Value;
+            }
+
+            return result;
+        }
+
+        protected abstract Dictionary<string, object> ToDictionary();
 
         protected abstract void FromDictionary(IDictionary<string, object?> data);
 
@@ -31,6 +53,8 @@ namespace Microsoft.Graph.ListItems.Extensions.Models
                 ? new Dictionary<string, object?>(fields)
                 : new Dictionary<string, object?>();
 
+            _originalData = new Dictionary<string, object?>(originalValues);
+            
             _changeTracker.SetOriginalValues(originalValues);
 
             if (originalValues.Count > 0)

@@ -3,6 +3,7 @@ using Microsoft.Graph.ListItems.Extensions.Models;
 using Microsoft.Graph.Models;
 using Microsoft.Graph.Sites.Item.Lists.Item.Items.Item;
 using Microsoft.Kiota.Abstractions;
+using Microsoft.Graph.ListItems.Extensions.Configuration;
 
 namespace Microsoft.Graph.ListItems.Extensions
 {
@@ -118,8 +119,9 @@ namespace Microsoft.Graph.ListItems.Extensions
             ArgumentNullException.ThrowIfNull(builder);
             ArgumentNullException.ThrowIfNull(model);
 
-            if (!model.HasChanges())
+            if (!GraphConfiguration.ShouldProceedWithUpdate(model.HasChanges()))
             {
+                Console.WriteLine("No changes detected, skipping update.");
                 return model;
             }
 
@@ -136,14 +138,15 @@ namespace Microsoft.Graph.ListItems.Extensions
             ArgumentNullException.ThrowIfNull(fieldsBuilder);
             ArgumentNullException.ThrowIfNull(model);
 
-            if (!model.HasChanges())
+            if (!GraphConfiguration.ShouldProceedWithUpdate(model.HasChanges()))
             {
+                Console.WriteLine("No changes detected, skipping update.");
                 return model;
             }
 
             var patchPayload = new FieldValueSet
             {
-                AdditionalData = model.ToDictionary()
+                AdditionalData = model.GetCurrentValues()
             };
 
             var updatedFields = await fieldsBuilder.PatchAsync(patchPayload) ??
@@ -163,7 +166,7 @@ namespace Microsoft.Graph.ListItems.Extensions
             {
                 Fields = new FieldValueSet
                 {
-                    AdditionalData = model.ToDictionary() ?? new Dictionary<string, object>()
+                    AdditionalData = model.GetCurrentValues() ?? new Dictionary<string, object>()
                 }
             };
 

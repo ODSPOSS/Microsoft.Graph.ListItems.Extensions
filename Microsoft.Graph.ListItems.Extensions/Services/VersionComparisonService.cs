@@ -19,10 +19,9 @@ namespace Microsoft.Graph.ListItems.Extensions.Services
                 return comparison;
             }
 
-            var fromData = fromVersion?.ToDictionary() ?? new Dictionary<string, object>();
-            var toData = toVersion?.ToDictionary() ?? new Dictionary<string, object>();
+            var fromData = fromVersion?.GetCurrentValues() ?? new Dictionary<string, object>();
+            var toData = toVersion?.GetCurrentValues() ?? new Dictionary<string, object>();
 
-            // Get all unique field names from both versions
             var allFields = fromData.Keys.Union(toData.Keys).ToHashSet();
 
             foreach (var fieldName in allFields)
@@ -51,15 +50,12 @@ namespace Microsoft.Graph.ListItems.Extensions.Services
                 return new VersionComparison<T> { ToVersion = model };
             }
 
-            // Create different comparison based on available original values
             var originalValues = model.GetOriginalValues();
             if (originalValues == null)
             {
-                // No original values available, just show current state
                 return new VersionComparison<T> { ToVersion = model };
             }
 
-            // Compare current values against original values directly
             var currentValues = model.GetCurrentValues();
             var comparison = new VersionComparison<T> { ToVersion = model };
 
